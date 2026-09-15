@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bitefeed
+    ports:
+      - "5432:5432"
+    volumes:
+      - bitefeed-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  bitefeed-postgres-data:
