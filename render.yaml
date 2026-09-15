@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: bitefeed
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build && npm run db:migrate
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CERT_SIGNING_PRIVATE_KEY
+        sync: false
+      - key: CERT_SIGNING_PUBLIC_KEY
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_APP_SLUG
+        sync: false

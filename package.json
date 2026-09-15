@@ -4,6 +4,9 @@
   "description": "Hosted certification service for HTML5 playable ad bundles (MCP server + drift monitoring).",
   "main": "dist/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",

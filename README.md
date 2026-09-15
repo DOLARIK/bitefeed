@@ -121,6 +121,27 @@ The MCP endpoint (`POST /mcp`) runs in stateless mode: a fresh `McpServer` + `St
 request. This service has no need for session-scoped MCP state across calls, and it avoids any cross-request state
 leaking through a shared server instance.
 
+## Deploying (Render + Neon)
+
+1. **Postgres (Neon):** sign up at [neon.tech](https://neon.tech) (free, no card required), create a project, and
+   copy its connection string (the "Pooled connection" string is fine).
+2. **App (Render):** sign up at [render.com](https://render.com) (free, no card required), click **New > Blueprint**,
+   and point it at this GitHub repo. Render reads [render.yaml](render.yaml) and creates the web service
+   automatically — it'll prompt you for the env vars marked `sync: false`:
+   - `DATABASE_URL` — the Neon connection string from step 1.
+   - `PUBLIC_BASE_URL` — `https://<the-service-name-render-gives-you>.onrender.com`.
+   - `CERT_SIGNING_PRIVATE_KEY` / `CERT_SIGNING_PUBLIC_KEY` — generate a **fresh production keypair** (don't reuse a
+     dev one) by running `npm run generate-signing-keys` locally and pasting the output in.
+   - `GITHUB_WEBHOOK_SECRET` / `GITHUB_APP_SLUG` — leave blank until you set up drift monitoring; the service
+     degrades gracefully without them (see [src/mcp/tools/connectRepo.ts](src/mcp/tools/connectRepo.ts)).
+3. Render's build step (`npm run build && npm run db:migrate`) applies migrations against Neon automatically on
+   every deploy — no separate migration step needed.
+4. Once deployed, bootstrap an account against the live service by running the create-account script locally with
+   `DATABASE_URL` pointed at Neon: `DATABASE_URL=<neon-url> npm run create-account -- you@example.com`.
+
+Free-tier caveat: Render's free web service sleeps after ~15 minutes of inactivity and takes 30-60s to wake on the
+next request — fine for an MCP server called on demand, not for something expecting instant cold-start latency.
+
 ## Not yet built (see PRD §14 open questions)
 
 - Stale-certificate notifications (email/webhook) — currently only visible on the public cert page.
