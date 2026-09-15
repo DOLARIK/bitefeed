@@ -27,7 +27,7 @@ export async function submitForValidationHandler(args: {
 
   let certificateId: string | null = null;
   if (result.passed && result.manifest) {
-    const { certificate } = await issueCertificate({
+    const certificate = await issueCertificate({
       accountId: account.id,
       network: args.network,
       manifest: result.manifest,

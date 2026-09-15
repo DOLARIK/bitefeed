@@ -12,6 +12,7 @@ export interface CertificateRecord {
   commitHash: string;
   network: string;
   status: CertificateStatus;
+  signature: string;
   manifestSnapshot: unknown;
   issuedAt: Date;
   lastCheckedAt: Date;
@@ -23,14 +24,9 @@ export interface IssueCertificateInput {
   manifest: Manifest;
 }
 
-export interface IssuedCertificate {
-  certificate: CertificateRecord;
-  signature: string;
-}
-
-/** Persists a new certificate row and signs its issuance facts. */
-export async function issueCertificate(input: IssueCertificateInput): Promise<IssuedCertificate> {
-  const [row] = await db
+/** Persists a new certificate row, signing its issuance facts exactly once. */
+export async function issueCertificate(input: IssueCertificateInput): Promise<CertificateRecord> {
+  const [inserted] = await db
     .insert(certificates)
     .values({
       accountId: input.accountId,
@@ -41,18 +37,22 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Is
     })
     .returning();
 
-  const certificate = toRecord(row);
-
   const signature = signCertificate({
-    certificateId: certificate.id,
-    accountId: certificate.accountId,
-    commitHash: certificate.commitHash,
-    network: certificate.network,
-    manifestHash: hashManifest(certificate.manifestSnapshot),
-    issuedAt: certificate.issuedAt.toISOString(),
+    certificateId: inserted.id,
+    accountId: inserted.accountId,
+    commitHash: inserted.commitHash,
+    network: inserted.network,
+    manifestHash: hashManifest(inserted.manifestSnapshot),
+    issuedAt: inserted.issuedAt.toISOString(),
   });
 
-  return { certificate, signature };
+  const [row] = await db
+    .update(certificates)
+    .set({ signature })
+    .where(eq(certificates.id, inserted.id))
+    .returning();
+
+  return toRecord(row);
 }
 
 export async function getCertificateById(id: string): Promise<CertificateRecord | null> {
@@ -68,18 +68,6 @@ export async function touchCertificateChecked(id: string): Promise<void> {
   await db.update(certificates).set({ lastCheckedAt: new Date() }).where(eq(certificates.id, id));
 }
 
-/** Recomputes the signature for an already-issued certificate's facts, for public verification. */
-export function signatureForCertificate(certificate: CertificateRecord): string {
-  return signCertificate({
-    certificateId: certificate.id,
-    accountId: certificate.accountId,
-    commitHash: certificate.commitHash,
-    network: certificate.network,
-    manifestHash: hashManifest(certificate.manifestSnapshot),
-    issuedAt: certificate.issuedAt.toISOString(),
-  });
-}
-
 function toRecord(row: typeof certificates.$inferSelect): CertificateRecord {
   return {
     id: row.id,
@@ -87,6 +75,18 @@ function toRecord(row: typeof certificates.$inferSelect): CertificateRecord {
     commitHash: row.commitHash,
     network: row.network,
     status: row.status as CertificateStatus,
+    // Legacy rows issued before the `signature` column existed have none
+    // stored; fall back to computing it once here rather than failing.
+    signature:
+      row.signature ??
+      signCertificate({
+        certificateId: row.id,
+        accountId: row.accountId,
+        commitHash: row.commitHash,
+        network: row.network,
+        manifestHash: hashManifest(row.manifestSnapshot),
+        issuedAt: row.issuedAt.toISOString(),
+      }),
     manifestSnapshot: row.manifestSnapshot,
     issuedAt: row.issuedAt,
     lastCheckedAt: row.lastCheckedAt,

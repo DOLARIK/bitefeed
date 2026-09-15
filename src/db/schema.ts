@@ -26,6 +26,10 @@ export const certificates = pgTable("certificates", {
   commitHash: text("commit_hash").notNull(),
   network: text("network").notNull(), // "meta" | "google" | "both"
   status: text("status").notNull(), // "valid" | "stale" | "failed"
+  // Computed once at issuance and stored so it never changes on read, even if
+  // the server's signing key is later rotated or a different environment
+  // (with a different key) happens to answer the request.
+  signature: text("signature"),
   manifestSnapshot: jsonb("manifest_snapshot").notNull(),
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
   lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }).notNull().defaultNow(),

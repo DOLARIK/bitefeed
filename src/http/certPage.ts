@@ -1,5 +1,4 @@
 import type { CertificateRecord } from "../services/certificates.js";
-import { signatureForCertificate } from "../services/certificates.js";
 import { getPublicSigningKeyBase64 } from "../certificates/signing.js";
 
 function escapeHtml(value: string): string {
@@ -23,7 +22,7 @@ const STATUS_LABEL: Record<string, string> = {
 /** Renders the public, unauthenticated certificate page. Shows nothing about the underlying source. */
 export function renderCertificatePage(certificate: CertificateRecord): string {
   const statusLabel = STATUS_LABEL[certificate.status] ?? certificate.status;
-  const signature = signatureForCertificate(certificate);
+  const signature = certificate.signature;
 
   return `<!doctype html>
 <html lang="en">
